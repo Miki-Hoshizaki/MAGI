@@ -47,3 +47,6 @@ coverage.xml
 
 # cursor
 .cursorrules
+
+# windsurf rules
+.windsurfrules

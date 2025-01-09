@@ -1,169 +1,86 @@
-import json
-import re
-from typing import List, Dict, Any, Tuple
-from llm_client import LLMClient
+from magi.agents.manager import AgentManager
+from magi.client import LLMClient
+import os
+from dotenv import load_dotenv
 
-def extract_code_generation_result(response: Dict[str, Any]) -> Tuple[str, str, str]:
-    """Extract analysis, code and explanation from code generation result"""
-    content = response["choices"][0]["message"]["content"]
+def evaluate_code(original_request: str, initial_code: str = None) -> None:
+    """Test the code review system with sample code."""
+    manager = AgentManager(max_iterations=3)
+    llm_client = LLMClient()
     
-    # Extract analysis part
-    analysis_pattern = r"<analysis>(.*?)</analysis>"
-    analysis_match = re.search(analysis_pattern, content, re.DOTALL)
-    analysis = analysis_match.group(1).strip() if analysis_match else ""
+    # Generate initial code if not provided
+    if initial_code is None:
+        print("\n=== Generating Initial Code ===")
+        initial_code = llm_client.generate_code(original_request)
+        print(f"Initial Code:\n{initial_code}\n")
     
-    # Extract code part
-    code_pattern = r"<code>(.*?)</code>"
-    code_match = re.search(code_pattern, content, re.DOTALL)
-    code = code_match.group(1).strip() if code_match else ""
+    # Review and potentially regenerate code
+    result = manager.review_code(original_request, initial_code)
     
-    # Extract explanation part
-    explanation_pattern = r"<explanation>(.*?)</explanation>"
-    explanation_match = re.search(explanation_pattern, content, re.DOTALL)
-    explanation = explanation_match.group(1).strip() if explanation_match else ""
+    # Print final results
+    print("\n=== Final Results ===")
+    print(f"Final Decision: {'APPROVED' if result['approved'] else 'REJECTED'}")
+    print(f"\nFinal Code:\n{result['final_code']}")
     
-    return analysis, code, explanation
-
-def evaluate_code(magi: LLMClient, code_info: Tuple[str, str, str], original_question: str) -> str:
-    """Use MAGI to evaluate code generation result
-    :param magi: MAGI instance
-    :param code_info: Tuple of (analysis, code, explanation)
-    :param original_question: Original programming question
-    """
-    analysis, code, explanation = code_info
-    messages = [
-        {"role": "system", "content": magi.create_system_prompt(original_question)},
-        {"role": "user", "content": f"""Original programming question: {original_question}
-
-Please evaluate the following code generation result from your perspective:
-
-Code generator's analysis:
-{analysis}
-
-Generated code:
-{code}
-
-Code explanation:
-{explanation}
-
-Please evaluate if this code generation result meets the requirements and give a POSITIVE or NEGATIVE judgment."""}
-    ]
-    
-    try:
-        print(f"\n{'-'*20} {magi.agent.upper()} Evaluation {'-'*20}")
-        response = magi.create_chat_completion(messages)
-        content = response["choices"][0]["message"]["content"]
-        print(f"Complete evaluation:\n{content}\n")
-        
-        pattern = r"<answer>\s*(POSITIVE|NEGATIVE)\s*</answer>"
-        match = re.search(pattern, content, re.DOTALL)
-        if match:
-            result = match.group(1)
-            print(f"Evaluation result: {result}")
-            return result
-        print("No explicit answer found, defaulting to NEGATIVE")
-        return "NEGATIVE"
-    except Exception as e:
-        print(f"Error in MAGI evaluation: {e}")
-        return "NEGATIVE"
-
-def combine_magi_results(magi_results: List[str]) -> bool:
-    """Combine results from three MAGIs, return True if two or more are POSITIVE"""
-    positive_count = sum(1 for result in magi_results if result == "POSITIVE")
-    return positive_count >= 2
-
-def extract_feedback(response: Dict[str, Any]) -> str:
-    """Extract feedback information from MAGI's evaluation"""
-    content = response["choices"][0]["message"]["content"]
-    inner_monologue_pattern = r"<inner_monologue>(.*?)</inner_monologue>"
-    match = re.search(inner_monologue_pattern, content, re.DOTALL)
-    return match.group(1).strip() if match else ""
+    print("\nFinal Agent Reviews:")
+    for i, feedback in enumerate(result['feedbacks'], 1):
+        print(f"\nAgent {i} Review:")
+        print(f"Decision: {feedback['decision']}")
+        print(f"Reason: {feedback['reason']}")
 
 def main():
-    # Create codegen agent and three MAGI instances
-    codegen = LLMClient(agent="codegen")
-    magis = [
-        LLMClient(agent="melchior"),
-        LLMClient(agent="balthasar"),
-        LLMClient(agent="casper")
-    ]
+    # Load environment variables from .env file
+    load_dotenv()
     
-    # Example programming question
-    question = input("Please enter your programming question: ")
+    # Test case 1: Simple request
+    print("\n=== Test Case 1: Simple Request ===")
+    original_request = """
+    Create a function that calculates the factorial of a number recursively.
+    The function should handle negative numbers and include proper input validation.
+    """
     
-    max_attempts = 3
-    attempt = 1
+    evaluate_code(original_request)
     
-    while attempt <= max_attempts:
-        print(f"\n=== Attempt #{attempt} ===")
-        
-        # Generate code
-        print("\n=== Code Generation ===")
-        messages = [
-            {"role": "system", "content": codegen.create_system_prompt(question)},
-            {"role": "user", "content": question}
-        ]
-        
-        try:
-            generation_result = codegen.create_chat_completion(messages)
-            print(json.dumps(generation_result, ensure_ascii=False, indent=2))
-            
-            # Extract code generation result
-            code_info = extract_code_generation_result(generation_result)
-            analysis, code, explanation = code_info
-            
-            print("\n=== Generated Code ===")
-            print(code)
-            
-            # Collect MAGI evaluations
-            print("\n=== MAGI Evaluation ===")
-            magi_results = []
-            magi_feedback = []
-            
-            for magi in magis:
-                result = evaluate_code(magi, code_info, question)
-                magi_results.append(result)
-                
-                # If NEGATIVE, collect feedback
-                if result == "NEGATIVE":
-                    feedback = extract_feedback(generation_result)
-                    if feedback:
-                        magi_feedback.append(f"{magi.agent}: {feedback}")
-            
-            # Check if passed
-            if combine_magi_results(magi_results):
-                print("\n=== Final Result: PASSED ===")
-                print("Generated code meets the requirements of at least two MAGIs")
-                return
-            
-            # If not passed, prepare for next attempt
-            if attempt < max_attempts:
-                print("\n=== Preparing for Regeneration ===")
-                print("MAGI Feedback:")
-                for feedback in magi_feedback:
-                    print(f"- {feedback}")
-                
-                # Update question with feedback
-                question = f"""Original question: {question}
+    # Test case 2: More complex request
+    print("\n=== Test Case 2: Complex Request ===")
+    original_request = """
+    Create a secure password validation function that checks:
+    - Minimum length of 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character
+    Return True if valid, False otherwise.
+    """
+    
+    evaluate_code(original_request)
 
-Previously generated code:
-{code}
-
-MAGI feedback:
-{chr(10).join(magi_feedback)}
-
-Please regenerate the code based on the above feedback."""
-            
-            attempt += 1
-            
-        except Exception as e:
-            print(f"Error: {e}")
-            print(f"Error type: {type(e)}")
-            print(f"Error args: {e.args}")
-            return
+    # Test case 3: More complex request - Twitter Analysis
+    print("\n=== Test Case 3: Twitter Analysis Request ===")
+    original_request = """
+    Create a Python script that:
+    1. Uses the Twitter API to fetch Elon Musk's recent tweets (last 100 tweets)
+    2. For each tweet:
+       - Use OpenAI's GPT model to analyze the sentiment regarding stock market impact
+       - Assign a score from -5 to +5 where:
+         * -5 means extremely negative impact on US stocks
+         * +5 means extremely positive impact on US stocks
+         * 0 means neutral or no impact
+    3. Calculate:
+       - Average sentiment score
+       - Total number of positive and negative tweets
+       - Most impactful tweets (highest absolute scores)
+    4. Generate a final conclusion about Elon's overall Twitter sentiment impact on US stocks
     
-    print("\n=== Final Result: FAILED ===")
-    print(f"After {max_attempts} attempts, still unable to generate code that meets requirements")
+    Requirements:
+    - Use Twitter API v2
+    - Include proper error handling for API rate limits
+    - Format the output in a clear, readable way
+    - Cache results to avoid unnecessary API calls
+    - Use asyncio for efficient API requests
+    """
+    
+    evaluate_code(original_request)
 
 if __name__ == "__main__":
     main()

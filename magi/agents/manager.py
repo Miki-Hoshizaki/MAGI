@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, TypedDict, Optional
 from . import BaseAgent, FeedbackResult
 from .builtin import MelchiorAgent, BalthasarAgent, CasperAgent
-from ..magi.client import LLMClient, Colors
+from ..client import LLMClient, Colors
 
 APPROVAL_BANNER = f"""
 {Colors.GREEN}

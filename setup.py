@@ -7,8 +7,9 @@ setup(
     author="raylin51",
     packages=find_packages(),
     install_requires=[
-        "requests",
-        "python-dotenv",
+        "requests>=2.31.0",
+        "python-dotenv>=1.0.0",
+        "openai>=1.3.5",
     ],
     python_requires=">=3.7",
     classifiers=[
@@ -23,4 +24,4 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
-) 
+)

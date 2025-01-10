@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from . import BaseAgent, FeedbackResult
-from ..magi.client import LLMClient
+from ..client import LLMClient
 
 class MelchiorAgent(BaseAgent):
     """MELCHIOR-1: A strict software architect focused on architectural design principles."""

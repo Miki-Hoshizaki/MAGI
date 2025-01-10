@@ -1,5 +1,5 @@
 from magi.agents.manager import AgentManager
-from magi.client import LLMClient
+from magi.magi.client import LLMClient
 import os
 from dotenv import load_dotenv
 

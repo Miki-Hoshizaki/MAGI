@@ -3,11 +3,16 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
+import json
 import os
 from pathlib import Path
 import aiofiles
 from celery_app import celery_app, process_code_generation
 import asyncio
+from extract_user_input import extract_user_input
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -83,6 +88,22 @@ async def generate_events(task_id: str):
 
 @app.post("/v1/chat/completions")
 async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
+    
+    # Extract the last message content for processing
+    last_message = request.messages[-1] if request.messages else None
+    if not last_message or last_message.role != "user":
+        raise HTTPException(status_code=400, detail="Last message must be from user")
+        
+    # Extract user input from the message content
+    extracted_input = await extract_user_input(last_message.content)
+    if extracted_input == "No valid user input found":
+        raise HTTPException(status_code=400, detail="No valid user input found in the message")
+    
+    print(extracted_input)
+    
+    # Update the last message with extracted input
+    request.messages[-1].content = extracted_input
+    
     task_id = str(uuid.uuid4())
     result_file = Path(f'results/{task_id}.html')
     
@@ -90,21 +111,26 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
     async with aiofiles.open(result_file, mode='w') as f:
         await f.write('<div class="status running">Initializing...</div>')
     
-    # Start Celery task
+    # Start Celery task with the processed request
     process_code_generation.delay(task_id, request.model_dump())
     
+    base_url = os.getenv('BASE_URL', "")
     # Generate response URL
-    result_url = f"/v1/results/{task_id}"
+    result_url = f"{base_url}/v1/results/{task_id}"
+    
+    eliza_expected_response = { "user": "magi", "text": f"You request accepted, please check here for your result: {result_url}", "action": "" }
+    
     response_message = Message(
         role="assistant",
-        content=f"You request accepted, please check here for your result: {result_url}"
+        content=json.dumps(eliza_expected_response)
     )
     
     return ChatCompletionResponse(
         model=request.model,
         choices=[
             Choice(
-                message=response_message
+                message=response_message,
+                finish_reason="stop"
             )
         ],
         usage=Usage()

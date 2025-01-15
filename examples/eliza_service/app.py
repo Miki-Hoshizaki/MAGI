@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
@@ -15,6 +16,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Ensure results directory exists
 Path("results").mkdir(exist_ok=True)
@@ -87,8 +97,16 @@ async def generate_events(task_id: str):
             break
 
 @app.post("/v1/chat/completions")
-async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompletionResponse:
+async def create_chat_completion(request: ChatCompletionRequest, authorization: str = Header(None)) -> ChatCompletionResponse:
+    # Check authorization
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header missing or invalid format")
     
+    token = authorization.split(" ")[1]
+    auth_token = os.getenv("AUTH_TOKEN")
+    if auth_token and token != auth_token:
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
+        
     # Extract the last message content for processing
     last_message = request.messages[-1] if request.messages else None
     if not last_message or last_message.role != "user":
@@ -136,6 +154,11 @@ async def create_chat_completion(request: ChatCompletionRequest) -> ChatCompleti
         usage=Usage()
     )
 
+@app.options("/v1/results/{task_id}")
+async def options_results(task_id: str):
+    """Handle OPTIONS request for results endpoint."""
+    return {"message": "OK"}
+
 @app.get("/v1/results/{task_id}")
 async def get_results(task_id: str):
     """Stream results as HTML."""
@@ -145,14 +168,28 @@ async def get_results(task_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
         }
     )
+
+@app.options("/v1/status/{task_id}")
+async def options_status(task_id: str):
+    """Handle OPTIONS request for status endpoint."""
+    return {"message": "OK"}
 
 @app.get("/v1/status/{task_id}")
 async def get_status(task_id: str):
     """Get task status."""
-    result = celery_app.AsyncResult(task_id)
-    return {"status": result.status}
+    return {
+        "status": celery_app.AsyncResult(task_id).status,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    }
 
 if __name__ == "__main__":
     import uvicorn

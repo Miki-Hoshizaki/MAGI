@@ -1,6 +1,5 @@
 import requests
 import json
-import webbrowser
 import sys
 import os
 
@@ -15,12 +14,9 @@ def test_code_generation():
             {
                 "role": "user",
                 "content": """
-                Create a Python function that implements a binary search algorithm.
-                The function should:
-                1. Take a sorted list and a target value as input
-                2. Return the index if found, or -1 if not found
-                3. Include proper type hints
-                4. Include docstring with examples
+                ## Conversation Messages
+                [2023-05-15 10:15:23] user: Create a Python script 
+                that collect all Elon musk's tweets from Twitter and call GPT to analyze the sentiment of each tweet.
                 """
             }
         ]
@@ -32,16 +28,8 @@ def test_code_generation():
     if response.status_code == 200:
         result = response.json()
         result_url = result['choices'][0]['message']['content']
+        print(result_url)
         
-        # Extract the URL from the response
-        result_url = result_url.split(": ")[-1]
-        
-        # Construct full URL
-        full_url = f"http://localhost:8000{result_url}"
-        print(f"Opening result page in browser: {full_url}")
-        
-        # Open the result page in the default browser
-        webbrowser.open(full_url)
     else:
         print(f"Error: {response.status_code}")
         print(response.text)

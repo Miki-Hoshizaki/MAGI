@@ -12,7 +12,7 @@ The project adopts a front-end and back-end separated microservice architecture,
 - Message Queue (Redis)
 - Database (PostgreSQL)
 
-For detailed architecture design, please refer to [RFC.md](RFC.md) and [architecture.md](architecture.md).
+For detailed architecture design, please refer to [Docs](https://magisystem.gitbook.io/magi-system)
 
 ## Development Environment Requirements
 

@@ -24,6 +24,38 @@ class ConnectionManager:
             del self.active_connections[session_id]
             logger.info(f"Connection removed: {session_id}")
     
+    async def disconnect_all(self):
+        """Disconnect all active WebSocket connections"""
+        logger.info("Disconnecting all WebSocket connections")
+        for session_id in list(self.active_connections.keys()):
+            try:
+                websocket = self.active_connections[session_id]
+                await websocket.close()
+            except Exception as e:
+                logger.error(f"Error closing connection for {session_id}: {str(e)}")
+            finally:
+                await self.disconnect(session_id)
+        logger.info("All connections have been closed")
+
+    async def broadcast(self, message: dict):
+        """Broadcast a message to all connected clients"""
+        logger.info(f"Broadcasting message to {len(self.active_connections)} clients")
+        disconnected_sessions = []
+        
+        for session_id, websocket in self.active_connections.items():
+            try:
+                await websocket.send_json(message)
+            except Exception as e:
+                logger.error(f"Error broadcasting to {session_id}: {str(e)}")
+                disconnected_sessions.append(session_id)
+        
+        # Clean up disconnected sessions
+        for session_id in disconnected_sessions:
+            await self.disconnect(session_id)
+            
+        if disconnected_sessions:
+            logger.info(f"Removed {len(disconnected_sessions)} disconnected sessions during broadcast")
+
     async def send_message(self, session_id: str, message: dict):
         """Send message to a specific client"""
         if session_id in self.active_connections:

@@ -114,8 +114,12 @@ async def test_redis_consumer_start_consuming(mock_redis, mock_websocket_manager
     await asyncio.wait_for(run_consumer(), timeout=2.0)
     
     print("Running consumer3")
-    # Verify blpop was called
+    # Verify blpop was called with all expected queues
     mock_redis.blpop.assert_awaited_with(
-        ["queue_agent_judgement_stream", "queue_agent_judgement_final"],
+        [
+            "queue_agent_judgement_stream",
+            "queue_agent_judgement_final",
+            "queue_system_control"
+        ],
         timeout=1
-    ) 
+    )

@@ -58,7 +58,7 @@ async def websocket_endpoint(
 
                 # Handle other message types
                 message_type = data.get("type")
-                if message_type not in ["agent_judgement", "test"]:  # Add test type
+                if message_type != "agent_judgement":
                     await websocket.send_json({
                         "error": "Unsupported message type"
                     })
@@ -67,19 +67,12 @@ async def websocket_endpoint(
                 # Add session_id to message
                 data["session_id"] = session_id
                 
-                if message_type == "test":
-                    # Directly respond to test message
-                    await websocket.send_json({
-                        "type": "test_response",
-                        "message": "received"
-                    })
-                else:
-                    # Send to Redis for processing
-                    await send_to_redis(data)
-                    await websocket.send_json({
-                        "type": "message_received",
-                        "message_type": message_type
-                    })
+                # Send to Redis for processing
+                await send_to_redis(data)
+                await websocket.send_json({
+                    "type": "message_received",
+                    "message_type": message_type
+                })
 
             except WebSocketDisconnect:
                 logger.info(f"WebSocket disconnected: {session_id}")

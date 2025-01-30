@@ -23,6 +23,21 @@ class RedisConsumer:
     
     async def process_message(self, message: dict):
         """Process received message"""
+        message_type = message.get("type")
+        
+        # Handle system control messages
+        if message_type == "disconnected_all":
+            await self.websocket_manager.disconnect_all()
+            return
+        elif message_type == "broadcast":
+            broadcast_message = message.get("message")
+            if broadcast_message:
+                await self.websocket_manager.broadcast(broadcast_message)
+            else:
+                logger.warning("Received broadcast message without content")
+            return
+            
+        # Handle regular messages
         session_id = message.get("session_id")
         if not session_id:
             logger.warning("Received message without session_id")
@@ -44,7 +59,11 @@ class RedisConsumer:
                     # Use wait_for to handle blpop, allowing faster response to stop signals
                     result = await asyncio.wait_for(
                         self.redis_client.blpop(
-                            ["queue_agent_judgement_stream", "queue_agent_judgement_final"],
+                            [
+                                "queue_agent_judgement_stream",
+                                "queue_agent_judgement_final",
+                                "queue_system_control"
+                            ],
                             timeout=1
                         ),
                         timeout=1.5

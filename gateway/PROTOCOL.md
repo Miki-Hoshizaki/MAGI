@@ -79,6 +79,7 @@ The Gateway service uses Redis queues for communication with backend services:
 
 - `queue_agent_judgement_stream`: For streaming updates
 - `queue_agent_judgement_final`: For final results
+- `queue_system_control`: For system control messages
 
 ### Message Format
 
@@ -89,6 +90,25 @@ Messages in Redis queues follow the same JSON structure as WebSocket messages:
     "type": "message_type",
     "session_id": "unique_session_id",
     // Additional fields based on message type
+}
+```
+
+### System Control Messages
+
+#### Disconnect All Sessions
+```json
+{
+    "type": "disconnected_all"
+}
+```
+
+#### Broadcast Message
+```json
+{
+    "type": "broadcast",
+    "message": {
+        // Message content to broadcast
+    }
 }
 ```
 

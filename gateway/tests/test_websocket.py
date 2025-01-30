@@ -138,10 +138,16 @@ async def test_websocket_endpoint(client, valid_appid, valid_token):
         # Wait for connection confirmation
         data = websocket.receive_json()
         assert "session_id" in data
-        
-        # Send test message
-        websocket.send_json({"type": "test", "message": "hello"})
-        
+
+        # Send agent_judgement message
+        message = {
+            "type": "agent_judgement",
+            "agent_ids": ["test_agent"],
+            "data": {"test": "data"}
+        }
+        websocket.send_json(message)
+
         # Wait for response
         response = websocket.receive_json()
-        assert response.get("type") == "test_response" 
+        assert response.get("type") == "message_received"
+        assert response.get("message_type") == "agent_judgement"

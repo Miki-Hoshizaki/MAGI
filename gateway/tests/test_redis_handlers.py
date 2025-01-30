@@ -84,7 +84,6 @@ async def test_redis_consumer_start_consuming(mock_redis, mock_websocket_manager
     """Test Redis consumer main loop"""
     consumer = RedisConsumer(mock_websocket_manager)
     
-    print("Running consumer1")
     
     async def run_consumer():
         # Create task
@@ -92,11 +91,9 @@ async def test_redis_consumer_start_consuming(mock_redis, mock_websocket_manager
         
         # Wait a short time to let consumer start
         await asyncio.sleep(0.2)
-        print("Running consumer2.1")
         
         # Stop consumer
         consumer.stop()
-        print("Consumer stopped")
         
         # Wait for task completion
         try:
@@ -110,10 +107,8 @@ async def test_redis_consumer_start_consuming(mock_redis, mock_websocket_manager
             except asyncio.CancelledError:
                 print("Consumer task cancelled")
     
-    print("Running consumer2")
     await asyncio.wait_for(run_consumer(), timeout=2.0)
     
-    print("Running consumer3")
     # Verify blpop was called with all expected queues
     mock_redis.blpop.assert_awaited_with(
         [

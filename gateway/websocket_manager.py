@@ -88,6 +88,14 @@ class ConnectionManager:
                 message["session_id"] = session_id
                 await send_to_redis(message)
             
+            elif message_type == "broadcast":
+                # Handle broadcast message
+                await self.broadcast(message)
+            
+            elif message_type == "disconnect_all":
+                # Handle disconnect all request
+                await self.disconnect_all()
+            
             elif message_type == "unregister":
                 # Handle unregister message (reserved for future use)
                 pass

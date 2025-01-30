@@ -62,6 +62,8 @@ class RedisConsumer:
                             [
                                 "queue_agent_judgement_stream",
                                 "queue_agent_judgement_final",
+                                # "queue_broadcast",
+                                # "queue_control",
                                 "queue_system_control"
                             ],
                             timeout=1

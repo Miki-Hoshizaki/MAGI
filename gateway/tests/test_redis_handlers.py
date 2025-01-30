@@ -114,7 +114,8 @@ async def test_redis_consumer_start_consuming(mock_redis, mock_websocket_manager
         [
             "queue_agent_judgement_stream",
             "queue_agent_judgement_final",
-            "queue_system_control"
+            "queue_broadcast",
+            "queue_control",
         ],
         timeout=1
     )

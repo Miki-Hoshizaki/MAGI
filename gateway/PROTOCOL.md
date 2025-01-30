@@ -79,7 +79,8 @@ The Gateway service uses Redis queues for communication with backend services:
 
 - `queue_agent_judgement_stream`: For streaming updates
 - `queue_agent_judgement_final`: For final results
-- `queue_system_control`: For system control messages
+- `queue_broadcast`: For broadcast messages
+- `queue_control`: For system control messages
 
 ### Message Format
 

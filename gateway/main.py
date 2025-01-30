@@ -1,23 +1,44 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from config import settings
-from middleware.auth import auth_middleware
 from routers import websocket
+from redis_handlers.consumer import RedisConsumer
 
-app = FastAPI(title=settings.APP_NAME)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Create Redis consumer
+redis_consumer = RedisConsumer(websocket.manager)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    loop = asyncio.get_event_loop()
+    loop.create_task(redis_consumer.start_consuming())
+    logger.info("Redis consumer started")
+    yield
+    # Shutdown
+    redis_consumer.stop()
+    logger.info("Redis consumer stopped")
+
+app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Should set specific domains in production environment
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add authentication middleware
-app.middleware("http")(auth_middleware)
 
 # Register routers
 app.include_router(websocket.router)

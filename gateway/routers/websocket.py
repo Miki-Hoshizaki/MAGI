@@ -1,50 +1,61 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from typing import Optional
 import json
-import jwt
-from ..config import settings
-from ..services.websocket_manager import WebSocketManager
+import logging
+from ..utils.auth import verify_appid_token, generate_session_id
+from ..websocket_manager import ConnectionManager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
-manager = WebSocketManager()
-
-async def get_token_data(token: str = Query(...)) -> dict:
-    """Get and verify token from query parameters"""
-    try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.JWTError:
-        return None
+manager = ConnectionManager()
 
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    token_data: Optional[dict] = Depends(get_token_data)
+    appid: str = Query(...),
+    token: str = Query(...)
 ):
-    if not token_data:
+    """WebSocket endpoint with appid + token authentication"""
+    
+    # Verify appid and token
+    if not verify_appid_token(appid, token):
+        logger.warning(f"Authentication failed for appid: {appid}")
         await websocket.close(code=1008)  # Policy Violation
         return
     
-    # Use user ID as client identifier
-    client_id = token_data.get("sub")
+    # Generate session ID for this connection
+    session_id = generate_session_id(appid)
     
-    await manager.connect(websocket, client_id)
+    # Accept connection
+    await manager.connect(session_id, websocket)
+    logger.info(f"New WebSocket connection: {session_id}")
+    
     try:
         while True:
-            data = await websocket.receive_text()
             try:
+                # Receive and parse message
+                data = await websocket.receive_text()
                 message = json.loads(data)
+                
                 # Handle message
-                await manager.handle_message(client_id, message)
+                await manager.handle_message(session_id, message)
+            
             except json.JSONDecodeError:
-                await websocket.send_text(json.dumps({
+                logger.warning(f"Invalid JSON received from {session_id}")
+                await manager.send_message(session_id, {
                     "error": "Invalid JSON format"
-                }))
+                })
+            
+            except Exception as e:
+                logger.error(f"Error processing message from {session_id}: {str(e)}")
+                await manager.send_message(session_id, {
+                    "error": "Internal server error"
+                })
+    
     except WebSocketDisconnect:
-        await manager.disconnect(client_id)
+        logger.info(f"WebSocket disconnected: {session_id}")
+        manager.disconnect(session_id)
+    
+    except Exception as e:
+        logger.error(f"Unexpected error for {session_id}: {str(e)}")
+        manager.disconnect(session_id)

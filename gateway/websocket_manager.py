@@ -1,33 +1,35 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from fastapi import WebSocket
 import json
 import logging
-from .redis_handlers.producer import send_to_redis
+from redis_handlers.producer import send_to_redis
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.redis_client = redis.from_url("redis://localhost:6379")
     
     async def connect(self, session_id: str, websocket: WebSocket):
-        """Accept connection and store it"""
+        """Connect and store a websocket connection"""
         await websocket.accept()
         self.active_connections[session_id] = websocket
         logger.info(f"New connection established: {session_id}")
     
-    def disconnect(self, session_id: str):
-        """Remove connection"""
+    async def disconnect(self, session_id: str):
+        """Remove a websocket connection"""
         if session_id in self.active_connections:
             del self.active_connections[session_id]
-            logger.info(f"Connection closed: {session_id}")
+            logger.info(f"Connection removed: {session_id}")
     
     async def send_message(self, session_id: str, message: dict):
         """Send message to a specific client"""
         if session_id in self.active_connections:
             websocket = self.active_connections[session_id]
             try:
-                await websocket.send_text(json.dumps(message))
+                await websocket.send_json(message)
             except Exception as e:
                 logger.error(f"Error sending message to {session_id}: {str(e)}")
                 await self.disconnect(session_id)

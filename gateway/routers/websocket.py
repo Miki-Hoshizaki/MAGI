@@ -2,8 +2,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from typing import Optional
 import json
 import logging
-from ..utils.auth import verify_appid_token, generate_session_id
-from ..websocket_manager import ConnectionManager
+from utils.auth import verify_appid_token, generate_session_id
+from websocket_manager import ConnectionManager
+from redis_handlers.producer import send_to_redis
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,42 +21,76 @@ async def websocket_endpoint(
     # Verify appid and token
     if not verify_appid_token(appid, token):
         logger.warning(f"Authentication failed for appid: {appid}")
-        await websocket.close(code=1008)  # Policy Violation
+        await websocket.close(code=4001, reason="Invalid credentials")
         return
     
     # Generate session ID for this connection
     session_id = generate_session_id(appid)
     
-    # Accept connection
-    await manager.connect(session_id, websocket)
-    logger.info(f"New WebSocket connection: {session_id}")
-    
     try:
+        # Accept connection
+        await manager.connect(session_id, websocket)
+        logger.info(f"New WebSocket connection: {session_id}")
+        
+        # Send connection confirmation
+        await websocket.send_json({
+            "type": "connection_established",
+            "session_id": session_id
+        })
+
         while True:
             try:
-                # Receive and parse message
-                data = await websocket.receive_text()
-                message = json.loads(data)
+                # Receive message
+                raw_data = await websocket.receive_text()
                 
-                # Handle message
-                await manager.handle_message(session_id, message)
-            
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON received from {session_id}")
-                await manager.send_message(session_id, {
-                    "error": "Invalid JSON format"
-                })
-            
+                try:
+                    data = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    await websocket.send_json({
+                        "error": "Invalid JSON format"
+                    })
+                    continue
+
+                # Handle ping message
+                if data.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+                    continue
+
+                # Handle other message types
+                message_type = data.get("type")
+                if message_type not in ["agent_judgement", "test"]:  # Add test type
+                    await websocket.send_json({
+                        "error": "Unsupported message type"
+                    })
+                    continue
+
+                # Add session_id to message
+                data["session_id"] = session_id
+                
+                if message_type == "test":
+                    # Directly respond to test message
+                    await websocket.send_json({
+                        "type": "test_response",
+                        "message": "received"
+                    })
+                else:
+                    # Send to Redis for processing
+                    await send_to_redis(data)
+                    await websocket.send_json({
+                        "type": "message_received",
+                        "message_type": message_type
+                    })
+
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected: {session_id}")
+                break
             except Exception as e:
                 logger.error(f"Error processing message from {session_id}: {str(e)}")
-                await manager.send_message(session_id, {
-                    "error": "Internal server error"
+                await websocket.send_json({
+                    "error": f"Error processing message: {str(e)}"
                 })
-    
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected: {session_id}")
-        manager.disconnect(session_id)
-    
+
     except Exception as e:
-        logger.error(f"Unexpected error for {session_id}: {str(e)}")
-        manager.disconnect(session_id)
+        logger.error(f"WebSocket error for {session_id}: {str(e)}")
+    finally:
+        await manager.disconnect(session_id)

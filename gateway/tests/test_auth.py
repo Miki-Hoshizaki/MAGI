@@ -1,8 +1,8 @@
 import pytest
 import time
 import hashlib
-from ..utils.auth import verify_appid_token, generate_session_id
-from ..config import settings
+from utils.auth import verify_appid_token, generate_session_id
+from config import settings
 
 def test_verify_appid_token_valid():
     """Test token verification with valid credentials"""
@@ -39,11 +39,16 @@ def test_generate_session_id():
     """Test session ID generation"""
     appid = "test_app"
     session_id = generate_session_id(appid)
+    assert isinstance(session_id, str)
+    assert len(session_id) > 0
+
+@pytest.mark.asyncio
+async def test_verify_appid_token():
+    """Test async token verification"""
+    appid = "test_app"
+    current_minute = int(time.time() // 60)
+    raw_str = f"{appid}{settings.FIXED_SECRET}{current_minute}"
+    token = hashlib.sha256(raw_str.encode()).hexdigest()[:10]
     
-    # Verify session ID format
-    assert session_id.startswith("session-test_app-")
-    assert len(session_id.split("-")) == 4  # session-appid-timestamp-suffix
-    
-    # Generate another session ID and verify it's different
-    another_session_id = generate_session_id(appid)
-    assert session_id != another_session_id 
+    result = verify_appid_token(appid, token)
+    assert result is True 

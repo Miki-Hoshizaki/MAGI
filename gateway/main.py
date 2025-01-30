@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from config import settings
 from routers import websocket
 from redis_handlers.consumer import RedisConsumer
+from websocket_manager import ConnectionManager
 
 # Configure logging
 logging.basicConfig(
@@ -15,21 +16,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create Redis consumer
-redis_consumer = RedisConsumer(websocket.manager)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    loop = asyncio.get_event_loop()
-    loop.create_task(redis_consumer.start_consuming())
-    logger.info("Redis consumer started")
-    yield
-    # Shutdown
-    redis_consumer.stop()
-    logger.info("Redis consumer stopped")
-
-app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)
+app = FastAPI(title=settings.APP_NAME)
+manager = ConnectionManager()
 
 # Add CORS middleware
 app.add_middleware(
@@ -39,6 +27,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the Redis consumer when the application starts"""
+    redis_consumer = RedisConsumer(manager)
+    loop = asyncio.get_event_loop()
+    loop.create_task(redis_consumer.consume_messages())
+    logger.info("Redis consumer started")
 
 # Register routers
 app.include_router(websocket.router)

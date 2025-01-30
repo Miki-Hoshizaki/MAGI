@@ -1,5 +1,16 @@
-import pytest
+import sys
 import os
+import pytest
+from httpx import AsyncClient
+from fastapi.testclient import TestClient
+from main import app
+
+@pytest.fixture
+def mock_redis(mocker):
+    """Mock Redis client for testing"""
+    mock_redis = mocker.MagicMock()
+    mocker.patch('redis.asyncio.from_url', return_value=mock_redis)
+    return mock_redis
 
 @pytest.fixture(autouse=True)
 def setup_test_env():

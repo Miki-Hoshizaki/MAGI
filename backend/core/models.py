@@ -1,6 +1,5 @@
 from django.db import models
 import uuid
-from django.contrib.postgres.fields import ArrayField
 
 
 class Task(models.Model):
@@ -16,7 +15,7 @@ class Task(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     original_request = models.TextField()
     generated_content = models.TextField()
-    voters = ArrayField(models.CharField(max_length=255), blank=True, null=True)
+    voters = models.JSONField(default=list, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

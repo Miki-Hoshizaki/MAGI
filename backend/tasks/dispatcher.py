@@ -4,6 +4,8 @@ Task dispatcher for handling gateway requests and distributing them to agents.
 from typing import List, Dict, Any
 from celery import shared_task, chord
 from celery.utils.log import get_task_logger
+from django.conf import settings
+from apps.agents.models import Agent
 from utils.redis_channels import RedisChannels
 from utils.redis_client import redis_client
 from .agent_tasks import process_agent_task
@@ -22,10 +24,15 @@ def dispatch_gateway_request(session_id: str, request_data: Dict[str, Any]) -> N
     try:
         logger.info(f"Dispatching gateway request for session {session_id}")
         
-        # Create agent tasks (default to 3 agents)
+        # Get active agents
+        agents = Agent.objects.filter(is_active=True)
+        if not agents.exists():
+            raise ValueError("No active agents available")
+        
+        # Create agent tasks
         header = [
-            process_agent_task.s(session_id, request_data)
-            for _ in range(3)
+            process_agent_task.s(session_id, request_data, str(agent.id))
+            for agent in agents
         ]
         
         # Create callback task to collect results
@@ -34,7 +41,7 @@ def dispatch_gateway_request(session_id: str, request_data: Dict[str, Any]) -> N
         # Execute the chord
         chord(header)(callback)
         
-        logger.info(f"Successfully dispatched request for session {session_id}")
+        logger.info(f"Successfully dispatched request to {len(agents)} agents for session {session_id}")
         
     except Exception as e:
         logger.error(f"Error dispatching gateway request: {str(e)}")
@@ -61,23 +68,38 @@ def collect_results(agent_results: List[Dict[str, Any]], session_id: str) -> Non
     try:
         logger.info(f"Collecting results for session {session_id}")
         
-        # Aggregate results (implement your aggregation logic here)
+        # Calculate weighted votes
+        votes = {}
+        for result in agent_results:
+            vote = result.get('vote')
+            weight = result.get('weight', 1.0)
+            confidence = result.get('confidence', 1.0)
+            
+            if vote not in votes:
+                votes[vote] = 0
+            votes[vote] += weight * confidence
+        
+        # Find the winning vote
+        winning_vote = max(votes.items(), key=lambda x: x[1])[0]
+        
+        # Prepare final result
         final_result = {
+            'status': 'completed',
             'agent_results': agent_results,
-            'aggregated_result': aggregate_results(agent_results)
+            'aggregated_result': {
+                'winning_vote': winning_vote,
+                'vote_distribution': votes
+            }
         }
         
         # Publish final result to result stream
         redis_client.xadd(
             RedisChannels.result_stream(session_id),
-            {
-                'status': 'completed',
-                'data': final_result
-            },
+            final_result,
             maxlen=1000
         )
         
-        logger.info(f"Successfully published results for session {session_id}")
+        logger.info(f"Successfully published aggregated results for session {session_id}")
         
     except Exception as e:
         logger.error(f"Error collecting results: {str(e)}")
@@ -90,23 +112,3 @@ def collect_results(agent_results: List[Dict[str, Any]], session_id: str) -> Non
             maxlen=1000
         )
         raise
-
-def aggregate_results(agent_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Aggregate results from multiple agents into a final result.
-    Implement your own aggregation logic here.
-    
-    Args:
-        agent_results: List of results from individual agents
-        
-    Returns:
-        Dict[str, Any]: The aggregated result
-    """
-    # TODO: Implement your result aggregation logic
-    # This is a simple example that just returns the majority vote
-    return {
-        'majority_vote': max(
-            (result.get('vote') for result in agent_results),
-            key=lambda x: sum(1 for r in agent_results if r.get('vote') == x)
-        )
-    }

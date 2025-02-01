@@ -13,3 +13,4 @@ drf_yasg==1.21.8
 django-prometheus==2.3.1
 django-redis==5.4.0
 openai>=1.0.0
+termcolor>=2.5.0

@@ -60,11 +60,8 @@ class RedisConsumer:
                     result = await asyncio.wait_for(
                         self.redis_client.blpop(
                             [
-                                "queue_agent_judgement_stream",
-                                "queue_agent_judgement_final",
-                                "queue_broadcast",
-                                "queue_control",
-                                # "queue_system_control"
+                                "gateway:requests",  # Gateway requests from backend
+                                "session:results:*",  # Results from backend for specific sessions
                             ],
                             timeout=1
                         ),
@@ -72,7 +69,7 @@ class RedisConsumer:
                     )
                     
                     if result:
-                        _, message_data = result
+                        channel, message_data = result
                         try:
                             message = json.loads(message_data)
                             await self.process_message(message)
@@ -107,4 +104,4 @@ class RedisConsumer:
         """Stop the consumer"""
         logger.debug("Stopping consumer...")
         self._running = False
-        self._stop_event.set() 
+        self._stop_event.set()

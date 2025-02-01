@@ -1,9 +1,19 @@
 import json
 import logging
 import redis.asyncio as redis
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# Global Redis connection
+_redis_client: Optional[redis.Redis] = None
+
+async def get_redis_connection(redis_url: str = "redis://localhost:6379") -> redis.Redis:
+    """Get or create Redis connection"""
+    global _redis_client
+    if not _redis_client:
+        _redis_client = redis.from_url(redis_url)
+    return _redis_client
 
 class RedisProducer:
     def __init__(self, redis_url: str = "redis://localhost:6379"):
@@ -13,7 +23,7 @@ class RedisProducer:
     async def connect(self):
         """Establish Redis connection"""
         if not self.redis:
-            self.redis = redis.from_url(self.redis_url)
+            self.redis = await get_redis_connection(self.redis_url)
     
     async def publish_request(self, session_id: str, message: Dict[str, Any]) -> bool:
         """Publish a request message to Redis"""
@@ -40,6 +50,7 @@ class RedisProducer:
         """Close Redis connection"""
         if self.redis:
             await self.redis.close()
+            self.redis = None
 
 # Global producer instance
 producer = RedisProducer()
@@ -50,5 +61,4 @@ async def send_to_redis(message: Dict[str, Any]) -> bool:
     if not session_id:
         logger.error("Message missing session_id")
         return False
-    
-    return await producer.publish_request(session_id, message) 
+    return await producer.publish_request(session_id, message)

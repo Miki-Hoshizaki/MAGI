@@ -35,7 +35,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    'core',
+    'apps.core',
     'apps.users',
     'apps.llm_providers',
     'apps.agents',

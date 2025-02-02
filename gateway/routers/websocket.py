@@ -3,12 +3,11 @@ from typing import Optional
 import json
 import logging
 from utils.auth import verify_appid_token, generate_session_id
-from websocket_manager import ConnectionManager
+from app_state import manager
 from redis_handlers.producer import send_to_redis
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-manager = ConnectionManager()
 
 @router.websocket("/ws")
 async def websocket_endpoint(

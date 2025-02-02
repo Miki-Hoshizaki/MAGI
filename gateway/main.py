@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from config import settings
 from routers import websocket
 from redis_handlers.consumer import RedisConsumer
-from websocket_manager import ConnectionManager
+from app_state import manager
 
 # Configure logging
 logging.basicConfig(
@@ -17,7 +17,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.APP_NAME)
-manager = ConnectionManager()
 
 # Add CORS middleware
 app.add_middleware(

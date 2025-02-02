@@ -58,6 +58,9 @@ class ConnectionManager:
 
     async def send_message(self, session_id: str, message: dict):
         """Send message to a specific client"""
+        print(self.active_connections)
+        print('send_message', session_id, message)
+        
         if session_id in self.active_connections:
             websocket = self.active_connections[session_id]
             try:

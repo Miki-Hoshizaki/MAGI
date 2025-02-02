@@ -50,55 +50,47 @@ class RedisConsumer:
         """Start consuming messages from Redis queues"""
         logger.debug("Starting consumer...")
         try:
-            await self.connect()
+            if not self.redis_client:
+                await self.connect()
+
+            # Subscribe to both system messages and response messages
+            pubsub = self.redis_client.pubsub()
+            ret = await pubsub.psubscribe("gateway:system:*", "gateway:responses:*")
+            
             self._running = True
-            self._stop_event.clear()
+            logger.info("Consumer started successfully")
             
             while self._running:
-                try:
-                    # Use wait_for to handle blpop, allowing faster response to stop signals
-                    result = await asyncio.wait_for(
-                        self.redis_client.blpop(
-                            [
-                                "gateway:requests",  # Gateway requests from backend
-                                "session:results:*",  # Results from backend for specific sessions
-                            ],
-                            timeout=1
-                        ),
-                        timeout=1.5
-                    )
-                    
-                    if result:
-                        channel, message_data = result
-                        try:
-                            message = json.loads(message_data)
-                            await self.process_message(message)
-                        except json.JSONDecodeError:
-                            logger.error(f"Invalid JSON message: {message_data}")
-                            
-                except asyncio.TimeoutError:
-                    if not self._running:
-                        logger.debug("Consumer stopped due to stop signal")
-                        break
-                    continue
-                except Exception as e:
-                    logger.error(f"Error processing message: {e}")
-                    if not self._running:
-                        break
-                    
-                # Check stop signal
                 if self._stop_event.is_set():
-                    logger.debug("Stop event detected")
                     break
                     
+                message = await pubsub.get_message(ignore_subscribe_messages=True)
+                if message is None:
+                    await asyncio.sleep(0.1)
+                    continue
+                
+                try:
+                    channel = message.get("channel", b"").decode()
+                    data = message.get("data", b"").decode()
+                    
+                    if not data:
+                        continue
+                        
+                    message_data = json.loads(data)
+                    await self.process_message(message_data)
+                    
+                except json.JSONDecodeError:
+                    logger.error(f"Failed to decode message: {message}")
+                except Exception as e:
+                    logger.error(f"Error processing message: {str(e)}")
+                    
         except Exception as e:
-            logger.error(f"Error consuming Redis messages: {e}")
+            logger.error(f"Consumer error: {str(e)}")
         finally:
             self._running = False
-            if self.redis_client:
-                await self.redis_client.close()
-                logger.debug("Redis connection closed")
-            self._stop_event.set()
+            if pubsub:
+                await pubsub.punsubscribe()
+                await pubsub.close()
     
     def stop(self):
         """Stop the consumer"""

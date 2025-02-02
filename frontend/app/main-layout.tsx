@@ -51,7 +51,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <header className="h-14 border-b px-4 flex items-center">
-            <h1 className="text-sm font-medium">Codegen</h1>
+            <h1 className="text-lg font-medium">Codegen</h1>
           </header>
           {children}
         </div>

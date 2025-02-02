@@ -145,40 +145,101 @@ async def main():
         receiver_task = asyncio.create_task(client.receive_messages())
             
         # Construct agent judgement message
-        agent_ids = [
-            "89cbe912-25d0-47b0-97da-b25622bfac0d",
-            "6634d0ec-d700-4a92-9066-4960a0f11927",
-            "d37c1cc8-bcc4-4b73-9f49-a93a30971f2c"
-        ]
-        
-        message_content = {
+        message = {
+            "type": "agent_judgement",
+            "request_id": str(uuid.uuid4()),
+            "request": '''
+            <user_request>
+Write a sorting algorithm in Python
+</user_request>
+
+<response>
+I'll write a Python implementation of the merge sort algorithm, which is an efficient, stable sorting algorithm with O(n log n) time complexity.
+
+```python
+def merge_sort(arr):
+    # Base case: if array has 1 or fewer elements, it's already sorted
+    if len(arr) <= 1:
+        return arr
+    
+    # Split array into two halves
+    mid = len(arr) // 2
+    left = arr[:mid]
+    right = arr[mid:]
+    
+    # Recursively sort both halves
+    left = merge_sort(left)
+    right = merge_sort(right)
+    
+    # Merge the sorted halves
+    return merge(left, right)
+
+def merge(left, right):
+    result = []
+    i = j = 0
+    
+    # Compare elements from both arrays and merge them in sorted order
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    
+    # Add remaining elements from left array, if any
+    result.extend(left[i:])
+    # Add remaining elements from right array, if any
+    result.extend(right[j:])
+    
+    return result
+
+# Example usage:
+if __name__ == "__main__":
+    # Test the sorting algorithm
+    test_array = [64, 34, 25, 12, 22, 11, 90]
+    sorted_array = merge_sort(test_array)
+    print(f"Original array: {test_array}")
+    print(f"Sorted array: {sorted_array}")
+```
+
+This implementation of merge sort works by:
+
+1. Dividing the input array into two halves recursively until we have single elements
+2. Merging these sorted smaller arrays back together in sorted order
+3. Continuing this process until we have one fully sorted array
+
+The algorithm is particularly efficient for large datasets and has several advantages:
+
+* Stable sorting (maintains relative order of equal elements)
+* Guaranteed O(n log n) time complexity regardless of input
+* Works well for linked lists
+* Predictable performance
+
+Would you like me to explain any part of the implementation in more detail?
+            ''',
             "agents": [
                 {
-                    "agent_id": agent_id,
-                    "judgement": {
-                        "score": 0.8,
-                        "reason": f"Agent {agent_id} evaluation result",
-                        "metadata": {
-                            "confidence": 0.9,
-                            "evaluation_time": time.time()
-                        }
-                    }
+                    "agent_id": "89cbe912-25d0-47b0-97da-b25622bfac0d",
+                },
+                {
+                    "agent_id": "6634d0ec-d700-4a92-9066-4960a0f11927",
+                },
+                {
+                    "agent_id": "d37c1cc8-bcc4-4b73-9f49-a93a30971f2c",
                 }
-                for agent_id in agent_ids
             ],
-            "context": {
-                "request_id": str(uuid.uuid4()),
-                "task_id": "task_001",
-                "evaluation_type": "test_evaluation"
-            }
+            "timestamp": time.time()
         }
         
-        # Send agent judgement message
-        await client.send_message("agent_judgement", message_content)
+        # Send message
+        await client.send_message("agent_judgement", message)
         
-        # Wait for response
-        while client.running:
-            await asyncio.sleep(0.1)
+        # Keep running until interrupted
+        try:
+            await receiver_task
+        except asyncio.CancelledError:
+            pass
             
     except Exception as e:
         print(colored(f"\n❌ Error: {e}", "red"))

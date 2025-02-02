@@ -1,8 +1,8 @@
 import os
 
 # Broker settings
-broker_url = os.getenv('REDIS_URL', 'redis://redis:6379/0')
-result_backend = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
+result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 
 # Task settings
 task_serializer = 'json'
@@ -16,6 +16,8 @@ task_always_eager = False
 task_eager_propagates = True
 task_ignore_result = False
 task_store_errors_even_if_ignored = True
+task_track_started = True
+task_time_limit = 30 * 60  # 30 minutes
 
 # Queue settings
 task_default_queue = 'default'
@@ -36,19 +38,10 @@ task_queues = {
 
 # Task routing
 task_routes = {
-    'core.tasks.*': {'queue': 'default'},
+    'tasks.*': {'queue': 'default'},
 }
-
-# Task result settings
-task_ignore_result = False
-task_track_started = True
-task_time_limit = 5 * 60  # 5 minutes
-task_soft_time_limit = 60  # 1 minute
 
 # Worker settings
 worker_prefetch_multiplier = 1
 worker_max_tasks_per_child = 100
 worker_max_memory_per_child = 200000  # 200MB
-
-# Beat settings
-beat_schedule = {}

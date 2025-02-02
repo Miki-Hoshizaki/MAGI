@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
     def __init__(self):
         super().__init__()
-        self.redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
+        self.redis_client = Redis.from_url(settings.REDIS_GATEWAY_URL)
         self.session_id = str(uuid.uuid4())
 
     def send_test_request(self) -> dict:

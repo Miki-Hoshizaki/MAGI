@@ -87,11 +87,22 @@ DATABASES = {
 # Redis settings
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+
+# Redis for Cache
+REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
+REDIS_CACHE_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CACHE_DB}"
+
+# Redis for Celery
+REDIS_CELERY_DB = os.getenv('REDIS_CELERY_DB', '1')
+REDIS_CELERY_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CELERY_DB}"
+
+# Redis for Gateway Communication
+REDIS_GATEWAY_DB = os.getenv('REDIS_GATEWAY_DB', '2')
+REDIS_GATEWAY_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_GATEWAY_DB}"
 
 # Celery Configuration
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_BROKER_URL = REDIS_CELERY_URL
+CELERY_RESULT_BACKEND = REDIS_CELERY_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -101,7 +112,7 @@ CELERY_TIMEZONE = 'UTC'
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
+        "LOCATION": REDIS_CACHE_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }

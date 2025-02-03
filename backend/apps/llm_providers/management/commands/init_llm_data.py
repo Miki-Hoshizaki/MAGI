@@ -43,6 +43,7 @@ class Command(BaseCommand):
                 # Create the three code review agents
                 agents_data = [
                     {
+                        "id": "d37c1cc8-bcc4-4b73-9f49-a93a30971f2c",
                         "name": "MELCHIOR-1",
                         "description": "A strict software architect focused on architectural design principles.",
                         "system_prompt": """You are MELCHIOR-1, a strict software architect with expertise in architectural design principles.
@@ -65,6 +66,7 @@ Please review the code focusing on architectural design principles and provide y
                         "weight": 1.0
                     },
                     {
+                        "id": "6634d0ec-d700-4a92-9066-4960a0f11927",
                         "name": "BALTHASAR-2",
                         "description": "A security engineer focused on security and stability.",
                         "system_prompt": """You are BALTHASAR-2, a security engineer with expertise in code security and stability.
@@ -87,6 +89,7 @@ Please review the code focusing on security and stability aspects and provide yo
                         "weight": 1.0
                     },
                     {
+                        "id": "89cbe912-25d0-47b0-97da-b25622bfac0d",
                         "name": "CASPER-3",
                         "description": "A full-stack developer focused on practicality and user experience.",
                         "system_prompt": """You are CASPER-3, a full-stack developer with expertise in practical implementation and user experience.
@@ -112,6 +115,7 @@ Please review the code focusing on practicality and user experience aspects and 
 
                 for agent_data in agents_data:
                     agent = Agent.objects.create(
+                        id=agent_data["id"],
                         name=agent_data["name"],
                         description=agent_data["description"],
                         llm_model=claude_model,

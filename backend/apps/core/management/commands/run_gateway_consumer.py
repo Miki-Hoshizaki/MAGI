@@ -13,26 +13,32 @@ class Command(BaseCommand):
     help = 'Runs the Redis consumer for gateway requests'
 
     def handle(self, *args, **options):
-        # Print Celery configuration
-        self.stdout.write("\nCelery Configuration:")
-        self.stdout.write("-" * 50)
-        self.stdout.write(f"Broker URL: {app.conf.broker_url}")
-        self.stdout.write(f"Result Backend: {app.conf.result_backend}")
-        self.stdout.write(f"Task Default Queue: {app.conf.task_default_queue}")
-        self.stdout.write(f"Task Serializer: {app.conf.task_serializer}")
-        self.stdout.write(f"Accept Content: {app.conf.accept_content}")
-        self.stdout.write("-" * 50 + "\n")
+        # Configure logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] %(message)s',
+        )
+        
+        # Log Celery configuration
+        logger.info("Celery Configuration:")
+        logger.info("-" * 50)
+        logger.info(f"Broker URL: {app.conf.broker_url}")
+        logger.info(f"Result Backend: {app.conf.result_backend}")
+        logger.info(f"Task Default Queue: {app.conf.task_default_queue}")
+        logger.info(f"Task Serializer: {app.conf.task_serializer}")
+        logger.info(f"Accept Content: {app.conf.accept_content}")
+        logger.info("-" * 50)
         
         # Get Redis URL from environment variable or use default
         redis_url = os.getenv('GATEWAY_REDIS_URL', 'redis://localhost:6379/0')
-        self.stdout.write(f'Connecting to Redis at: {redis_url}')
+        logger.info(f'Connecting to Redis at: {redis_url}')
         
         redis_client = redis.from_url(redis_url)
         pubsub = redis_client.pubsub()
         
         # Subscribe to gateway request pattern
         pattern = "gateway:requests:*"
-        self.stdout.write(self.style.SUCCESS(f'Subscribing to pattern: {pattern}'))
+        logger.info(f'Subscribing to pattern: {pattern}')
         pubsub.psubscribe(pattern)
         
         try:
@@ -45,7 +51,7 @@ class Command(BaseCommand):
                         
                         # Parse message data
                         data = json.loads(message['data'].decode())
-                        self.stdout.write(f'Received message on channel {channel}')
+                        logger.info(f'Received message on channel {channel}')
                         # self.stdout.write(f'Message data: {json.dumps(data, indent=2)}')
                         
                         # Queue celery task

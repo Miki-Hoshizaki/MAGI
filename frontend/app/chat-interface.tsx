@@ -9,8 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useMAGI } from "./contexts/magi-context"
 
 // WebSocket connection parameters
-const WS_HOST = "localhost";
-const WS_PORT = 8888;
+const GATEWAY_URL_PREFIX = typeof window !== 'undefined' ? window.location.host : ''
 const APP_ID = "b75fce6f-e8af-4207-9c32-f8166afb4520";
 const AGENT_IDS = {
   melchior: "d37c1cc8-bcc4-4b73-9f49-a93a30971f2c",
@@ -85,7 +84,8 @@ export default function ChatInterface() {
   // Connect to WebSocket
   const connectWebSocket = useCallback(async () => {
     const token = await generateToken();
-    const wsUrl = `ws://${WS_HOST}:${WS_PORT}/ws?appid=${APP_ID}&token=${token}`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const wsUrl = `${wsProtocol}${GATEWAY_URL_PREFIX}/ws?appid=${APP_ID}&token=${token}`;
     const newWs = new WebSocket(wsUrl);
 
     newWs.onopen = () => {

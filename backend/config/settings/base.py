@@ -200,3 +200,8 @@ if SENTRY_DSN:
         traces_sample_rate=1.0,
         send_default_pii=True
     )
+    
+
+GATEWAY_REDIS_HOST = os.getenv('GATEWAY_REDIS_HOST', 'localhost')
+GATEWAY_REDIS_PORT = os.getenv('GATEWAY_REDIS_PORT', '6379')
+GATEWAY_REDIS_DB = os.getenv('GATEWAY_REDIS_DB', '0')

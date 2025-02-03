@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useMAGI } from "./contexts/magi-context"
 import hash from 'hash.js'
+import { v4 as uuidv4 } from 'uuid'
 
 // WebSocket connection parameters
 const GATEWAY_URL_PREFIX = typeof window !== 'undefined' ? window.location.host : ''
@@ -229,7 +230,7 @@ Please revise the code based on the feedback above.
   const sendToWebSocket = useCallback((userInput: string, response: string) => {
     if (!ws) return;
 
-    const requestId = crypto.randomUUID();
+    const requestId = uuidv4();
     setMagiJudgementId(requestId);
     setCompletedAgents(new Set());
 

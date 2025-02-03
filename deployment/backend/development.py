@@ -16,3 +16,4 @@ DATABASES = {
         "NAME": BASE_DIR / "db/db.sqlite3",
     }
 }
+

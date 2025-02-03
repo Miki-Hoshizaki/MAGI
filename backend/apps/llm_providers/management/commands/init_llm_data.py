@@ -4,8 +4,11 @@ Django management command to initialize LLM providers and agents.
 import os
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.contrib.auth import get_user_model
 from apps.llm_providers.models import LLMProvider, LLMModel
 from apps.agents.models import Agent
+
+User = get_user_model()
 
 class Command(BaseCommand):
     help = 'Initialize LLM providers and agents'
@@ -13,6 +16,15 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         try:
             with transaction.atomic():
+                # Create superuser
+                if not User.objects.filter(username='admin').exists():
+                    User.objects.create_superuser(
+                        username='admin',
+                        password='admin',
+                        email='admin@magisystem.ai'
+                    )
+                    self.stdout.write(self.style.SUCCESS('Created superuser: admin'))
+
                 # Create RedPill provider
                 redpill_provider = LLMProvider.objects.create(
                     name="RedPill AI",

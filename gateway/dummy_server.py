@@ -14,14 +14,15 @@ import uuid
 from redis.asyncio import Redis
 from typing import Optional
 from termcolor import colored
+from config import settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DummyServer:
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        self.redis_url = redis_url
+    def __init__(self):
+        self.redis_url = settings.get_redis_url()
         self.redis_client: Optional[Redis] = None
         self._running = False
         self._stop_event = asyncio.Event()

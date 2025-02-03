@@ -137,8 +137,8 @@ export default function ChatInterface() {
       });
     };
 
-    window.addEventListener('agent_complete', handleAgentComplete);
-    return () => window.removeEventListener('agent_complete', handleAgentComplete);
+    window.addEventListener('agent_complete', (event: Event) => handleAgentComplete(event as CustomEvent<{requestId: string, agentId: string}>));
+    return () => window.removeEventListener('agent_complete', (event: Event) => handleAgentComplete(event as CustomEvent<{requestId: string, agentId: string}>));
   }, [magiJudgementId]);
 
   // Monitor the number of completed agents

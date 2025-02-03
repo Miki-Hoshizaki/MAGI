@@ -1,29 +1,29 @@
-import json
-import logging
-import redis.asyncio as redis
 from typing import Dict, Any, Optional
+import json
+import redis.asyncio as redis
+import logging
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # Global Redis connection
 _redis_client: Optional[redis.Redis] = None
 
-async def get_redis_connection(redis_url: str = "redis://localhost:6379") -> redis.Redis:
-    """Get or create Redis connection"""
+async def get_redis_connection() -> redis.Redis:
+    """Get a Redis connection"""
     global _redis_client
     if not _redis_client:
-        _redis_client = redis.from_url(redis_url)
+        _redis_client = redis.from_url(settings.get_redis_url())
     return _redis_client
 
 class RedisProducer:
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        self.redis_url = redis_url
+    def __init__(self):
         self.redis = None
     
     async def connect(self):
-        """Establish Redis connection"""
+        """Connect to Redis if not already connected"""
         if not self.redis:
-            self.redis = await get_redis_connection(self.redis_url)
+            self.redis = await get_redis_connection()
     
     async def publish_request(self, session_id: str, message: Dict[str, Any]) -> bool:
         """Publish a request message to Redis"""

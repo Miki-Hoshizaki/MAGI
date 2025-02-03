@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -32,3 +34,6 @@ urlpatterns = [
     path('api/', include('apps.core.urls')),
     path('api/llm/', include('apps.llm_providers.urls')),
 ]
+
+# 添加静态文件路由
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

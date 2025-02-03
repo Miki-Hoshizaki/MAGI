@@ -39,7 +39,11 @@ interface AgentState {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [agentStates, setAgentStates] = useState<{ [key: string]: AgentState }>({
+  const [agentStates, setAgentStates] = useState<{
+    melchior: AgentState;
+    balthasar: AgentState;
+    casper: AgentState;
+  }>({
     melchior: { messages: [], decision: null },
     balthasar: { messages: [], decision: null },
     casper: { messages: [], decision: null }

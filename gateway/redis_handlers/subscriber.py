@@ -4,26 +4,28 @@ import asyncio
 import redis.asyncio as redis
 from typing import Optional, Dict
 from websocket_manager import ConnectionManager
+from utils.redis_channels import GATEWAY_RESPONSE_CHANNEL
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 class RedisSubscriber:
-    def __init__(self, connection_manager: ConnectionManager, redis_url: str = "redis://localhost:6379"):
+    def __init__(self, connection_manager: ConnectionManager):
         self.connection_manager = connection_manager
-        self.redis_url = redis_url
+        self.redis = None
         self.pubsub: Optional[redis.client.PubSub] = None
         self.is_running = False
         
     async def connect(self):
-        """Establish Redis connection and subscribe to channels"""
+        """Connect to Redis if not already connected"""
         try:
-            self.redis = redis.from_url(self.redis_url)
+            self.redis = redis.from_url(settings.get_redis_url())
             self.pubsub = self.redis.pubsub()
             # Subscribe to all backend response channels
             await self.pubsub.psubscribe("backend:responses:*")
             logger.info("Successfully subscribed to backend response channels")
         except Exception as e:
-            logger.error(f"Error connecting to Redis: {str(e)}")
+            logger.error(f"Failed to connect to Redis: {str(e)}")
             raise
     
     async def start(self):

@@ -1,9 +1,5 @@
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
 # Set work directory
 WORKDIR /app
 
@@ -20,9 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Copy entrypoint script
-COPY scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Run entrypoint script
-ENTRYPOINT ["/entrypoint.sh"]
+# Run application
+ENTRYPOINT ["uvicorn", "main:app"]

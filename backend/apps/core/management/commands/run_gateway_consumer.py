@@ -24,7 +24,7 @@ class Command(BaseCommand):
         self.stdout.write("-" * 50 + "\n")
         
         # Get Redis URL from environment variable or use default
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        redis_url = os.getenv('GATEWAY_REDIS_URL', 'redis://localhost:6379/0')
         self.stdout.write(f'Connecting to Redis at: {redis_url}')
         
         redis_client = redis.from_url(redis_url)
@@ -46,7 +46,7 @@ class Command(BaseCommand):
                         # Parse message data
                         data = json.loads(message['data'].decode())
                         self.stdout.write(f'Received message on channel {channel}')
-                        self.stdout.write(f'Message data: {json.dumps(data, indent=2)}')
+                        # self.stdout.write(f'Message data: {json.dumps(data, indent=2)}')
                         
                         # Queue celery task
                         process_request.delay(

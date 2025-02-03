@@ -80,20 +80,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'db/db.sqlite3',
     }
 }
 
 # Redis settings
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_HOST = os.getenv('BACKEND_REDIS_HOST', 'localhost')
+REDIS_PORT = os.getenv('BACKEND_REDIS_PORT', '6379')
 
 # Redis for Cache
-REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
+REDIS_CACHE_DB = os.getenv('BACKEND_REDIS_CACHE_DB', '0')
 REDIS_CACHE_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CACHE_DB}"
 
 # Redis for Celery
-REDIS_CELERY_DB = os.getenv('REDIS_CELERY_DB', '1')
+REDIS_CELERY_DB = os.getenv('BACKEND_REDIS_CELERY_DB', '1')
 REDIS_CELERY_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CELERY_DB}"
 
 # Redis for Gateway Communication

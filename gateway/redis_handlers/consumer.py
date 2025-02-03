@@ -1,22 +1,23 @@
 import json
-import asyncio
 import logging
 from typing import Optional
+import asyncio
 from redis.asyncio import Redis
 from websocket_manager import ConnectionManager
 from .producer import get_redis_connection
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 class RedisConsumer:
-    def __init__(self, websocket_manager: ConnectionManager):
-        self.websocket_manager = websocket_manager
+    def __init__(self, connection_manager: ConnectionManager):
+        self.connection_manager = connection_manager
         self.redis_client: Optional[Redis] = None
-        self._running = False
+        self.should_stop = False
         self._stop_event = asyncio.Event()
-        
+
     async def connect(self):
-        """Connect to Redis"""
+        """Connect to Redis if not already connected"""
         if not self.redis_client:
             self.redis_client = await get_redis_connection()
             logger.debug("Connected to Redis")
@@ -27,12 +28,12 @@ class RedisConsumer:
         
         # Handle system control messages
         if message_type == "disconnected_all":
-            await self.websocket_manager.disconnect_all()
+            await self.connection_manager.disconnect_all()
             return
         elif message_type == "broadcast":
             broadcast_message = message.get("message")
             if broadcast_message:
-                await self.websocket_manager.broadcast(broadcast_message)
+                await self.connection_manager.broadcast(broadcast_message)
             else:
                 logger.warning("Received broadcast message without content")
             return
@@ -43,7 +44,7 @@ class RedisConsumer:
             logger.warning("Received message without session_id")
             return
             
-        await self.websocket_manager.send_message(session_id, message)
+        await self.connection_manager.send_message(session_id, message)
         logger.debug(f"Processed message for session {session_id}")
     
     async def consume_messages(self):
@@ -57,10 +58,10 @@ class RedisConsumer:
             pubsub = self.redis_client.pubsub()
             ret = await pubsub.psubscribe("gateway:system:*", "gateway:responses:*")
             
-            self._running = True
+            self.should_stop = False
             logger.info("Consumer started successfully")
             
-            while self._running:
+            while not self.should_stop:
                 if self._stop_event.is_set():
                     break
                     
@@ -87,13 +88,16 @@ class RedisConsumer:
         except Exception as e:
             logger.error(f"Consumer error: {str(e)}")
         finally:
-            self._running = False
-            if pubsub:
-                await pubsub.punsubscribe()
-                await pubsub.close()
+            self.should_stop = True
+            try:
+                if 'pubsub' in locals() and pubsub:
+                    await pubsub.punsubscribe()
+                    await pubsub.close()
+            except Exception as e:
+                logger.error(f"Error closing pubsub connection: {str(e)}")
     
     def stop(self):
         """Stop the consumer"""
         logger.debug("Stopping consumer...")
-        self._running = False
+        self.should_stop = True
         self._stop_event.set()

@@ -38,11 +38,12 @@ async def startup_event():
 # Register routers
 app.include_router(websocket.router)
 
-@app.get("/health")
+@app.get("/ws/health")
 async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
+    print(settings)
     uvicorn.run(
         "main:app",
         host=settings.HOST,

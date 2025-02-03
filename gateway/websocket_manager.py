@@ -4,13 +4,14 @@ import json
 import logging
 from redis_handlers.producer import send_to_redis
 import redis.asyncio as redis
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
-        self.redis_client = redis.from_url("redis://localhost:6379")
+        self.redis_client = redis.from_url(settings.get_redis_url())
     
     async def connect(self, session_id: str, websocket: WebSocket):
         """Connect and store a websocket connection"""

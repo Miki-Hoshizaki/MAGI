@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useMAGI } from "./contexts/magi-context"
+import hash from 'hash.js'
 
 // WebSocket connection parameters
 const GATEWAY_URL_PREFIX = typeof window !== 'undefined' ? window.location.host : ''
@@ -73,12 +74,7 @@ export default function ChatInterface() {
     const currentMinute = Math.floor(Date.now() / 60000);
     const secret = "magi-gateway-development-secret";
     const rawStr = `${APP_ID}${secret}${currentMinute}`;
-    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawStr))
-      .then(hashBuffer => {
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return hashHex.slice(0, 10);
-      });
+    return hash.sha256().update(rawStr).digest('hex').slice(0, 10);
   }, []);
 
   // Connect to WebSocket

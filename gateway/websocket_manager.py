@@ -90,6 +90,21 @@ class ConnectionManager:
                 
                 # Add session_id to message before sending to Redis
                 message["session_id"] = session_id
+                message["type"] = "agent_judgement"  # ensure type field is set
+                await send_to_redis(message)
+            
+            elif message_type == "get_voters":
+                # Handle get_voters message
+                user_input = message.get("user_input")
+                if not user_input:
+                    await self.send_message(session_id, {
+                        "error": "Missing user_input for get_voters"
+                    })
+                    return
+                
+                # ensure type field is set
+                message["session_id"] = session_id
+                message["type"] = "get_voters"  # ensure type field is set
                 await send_to_redis(message)
             
             elif message_type == "broadcast":

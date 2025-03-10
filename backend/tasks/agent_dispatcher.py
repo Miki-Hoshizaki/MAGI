@@ -12,15 +12,97 @@ logger = logging.getLogger(__name__)
 # Redis connection
 redis_client = redis.Redis(host=settings.GATEWAY_REDIS_HOST, port=settings.GATEWAY_REDIS_PORT, db=settings.GATEWAY_REDIS_DB)
 
+
+def handle_get_voters(session_id: str, message: Dict):
+    try:
+        request_id = message.get('request_id', '')
+        user_input = message.get('user_input', '')
+        
+        if not user_input:
+            raise ValueError("Missing user_input for get_voters request")
+        
+        from apps.agents.models import Agent
+        voter_agents = Agent.objects.filter(is_active=True)
+        
+        if not voter_agents.exists():
+            logger.warning("No voter agents found in the system")
+            response = {
+                "type": "get_voters_response",
+                "session_id": session_id,
+                "request_id": request_id,
+                "status": "success",
+                "voters": [],
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        else:
+            voters = []
+            for agent in voter_agents:
+                voters.append({
+                    "agent_id": str(agent.id),
+                    "name": agent.name,
+                    "description": agent.description
+                })
+            
+            response = {
+                "type": "get_voters_response",
+                "session_id": session_id,
+                "request_id": request_id,
+                "status": "success",
+                "voters": voters,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        redis_client.publish(f"gateway:responses:{session_id}", json.dumps(response))
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing get_voters for session {session_id}: {str(e)}")
+        error_message = {
+            "type": "get_voters_response",
+            "session_id": session_id,
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        redis_client.publish(f"gateway:responses:{session_id}", json.dumps(error_message))
+        raise
+
 @shared_task(name='tasks.process_request')
 def process_request(session_id: str, message: Dict):
     """
     Main task that processes incoming requests from Gateway
-    and dispatches them to agent workers
+    and dispatches them to agent workers based on request_type
     """
     try:
         logger.info(f"Processing request for session {session_id}")
         
+        request_type = message.get('type')
+        logger.info(f"Request type: {request_type}")
+        
+        if request_type == "get_voters":
+            return handle_get_voters(session_id, message)
+        elif request_type == "agent_judgement":
+            return handle_agent_judgement(session_id, message)
+        else:
+            return handle_agent_judgement(session_id, message)
+    
+    except Exception as e:
+        logger.error(f"Error processing request for session {session_id}: {str(e)}")
+        # Publish error message back to Gateway
+        error_message = {
+            "type": "response",
+            "response_type": message.get('type', 'unknown'),
+            "session_id": session_id,
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        redis_client.publish(f"gateway:responses:{session_id}", json.dumps(error_message))
+        raise
+
+
+def handle_agent_judgement(session_id: str, message: Dict):
+    try:
         # Extract request data
         request_id = message.get('request_id')
         agents_data = message.get('agents', [])
@@ -49,10 +131,8 @@ def process_request(session_id: str, message: Dict):
             "request_id": request_id,
             "timestamp": datetime.utcnow().isoformat()
         }
-    
     except Exception as e:
-        logger.error(f"Error processing request for session {session_id}: {str(e)}")
-        # Publish error message back to Gateway
+        logger.error(f"Error in agent judgement for session {session_id}: {str(e)}")
         error_message = {
             "type": "agent_judgement_response",
             "session_id": session_id,

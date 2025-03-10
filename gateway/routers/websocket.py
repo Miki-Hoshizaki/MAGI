@@ -57,7 +57,7 @@ async def websocket_endpoint(
 
                 # Handle other message types
                 message_type = data.get("type")
-                if message_type != "agent_judgement":
+                if message_type not in ("get_voters", "agent_judgement"):
                     await websocket.send_json({
                         "error": "Unsupported message type"
                     })

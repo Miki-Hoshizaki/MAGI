@@ -1,4 +1,12 @@
-![MAGI Logo](magi.jpg)
+<p align="center">
+  <img src="magi.png" alt="MAGI Logo" width="25%">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"/>
+  <img src="https://img.shields.io/badge/version-0.0.1alpha-green.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/python-3.11-orange.svg" alt="Python"/>
+</p>
 
 # MAGI System
 
